@@ -75,7 +75,7 @@ enum{
 #define ThresholdWindow				1
 #define MaximumWorkingTimeInMinutes 10	//TODO need some normal names!!!
 #define ConnectTimeoutInMinutes		12	//TODO need some normal names!!!
-#define StatusSMSPeriodInMinutes	20	//TODO need some normal names!!!
+#define StatusSMSPeriodInMinutes	10	//TODO need some normal names!!!
 #define MinimumRxTimeout 200
 #define LCDUpdatePeriodMs			2000
 #define RetryCount 5

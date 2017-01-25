@@ -1,3 +1,7 @@
+//V1.0.5:
+//	-changed text in status SMS (russian translit)
+//	-changed StatusSMSPeriodInMinutes back to 10
+//	-moved ChannelFlags processing from RxTimerCallback to UpdateChannelState (induced bug for now, but better structured)
 //V1.0.4:
 //	-defines for debugging and using various versions of hardware.
 //	-added fno-strict-aliasing param
@@ -11,6 +15,8 @@
 //V1.0.1:
 //	-Reply SMS only to owner, and only to correct command
 //V1.0.0 - Original version
+
+//TODO bug in relay communication. If relay don't answer, channel flag still clears
 
 #include "stm32f1xx_hal.h"
 #include "SX1278Drv.h"
@@ -220,15 +226,15 @@ static void LCDTaskFxn(void const * argument){
 			uint8_t idx;
 
 			if(chFlags & ChannelFlag_TooLongError)
-				size += sprintf(StatusSMSStr+size,"T too long out of bounds\n");
+				size += sprintf(StatusSMSStr+size,"Slishkom dolgo\n");
 			if((chFlags & ChannelFlag_TooMuchError) && (chFlags & ChannelFlag_Low))
-				size += sprintf(StatusSMSStr+size,"T too low\n");
+				size += sprintf(StatusSMSStr+size,"Nizkaya temp\n");
 			if((chFlags & ChannelFlag_TooMuchError) && (chFlags & ChannelFlag_High))
-				size += sprintf(StatusSMSStr+size,"T too high\n");
+				size += sprintf(StatusSMSStr+size,"Visokaya temp\n");
 
 			bool someSensorsNoConnect = false;
 
-			size += sprintf(StatusSMSStr+size,"S ");
+			size += sprintf(StatusSMSStr+size,"Termometr ");
 
 			for(idx = 0; idx < SensorCount; idx++)
 				if(HAL_GetTick() - sensorConnectTimer[idx] > 60000*ConnectTimeoutInMinutes){
@@ -239,12 +245,12 @@ static void LCDTaskFxn(void const * argument){
 			if(!someSensorsNoConnect)
 				size -= 2;
 			else
-				size += sprintf(StatusSMSStr+size-1," N/A\n") - 1;
+				size += sprintf(StatusSMSStr+size-1," Ne obnaryzen\n") - 1;
 
 #ifndef DebugWithoutRelay
 			bool someRelaysNoConnect = false;
 
-			size += sprintf(StatusSMSStr+size,"R ");
+			size += sprintf(StatusSMSStr+size,"Rele ");
 
 			for(idx = 0; idx < RelayCount; idx++)
 				if(relayNotConnected[idx]){
@@ -260,7 +266,7 @@ static void LCDTaskFxn(void const * argument){
 			if(!someRelaysNoConnect)
 				size -= 2;
 			else
-				size += sprintf(StatusSMSStr+size-1," N/A\n") - 1;
+				size += sprintf(StatusSMSStr+size-1," Ne obnaryzeno\n") - 1;
 #endif
 
 
@@ -310,16 +316,24 @@ void UpdateChannelState(){
 		if(sensorState[idx] & SensorState_TooMuch)
 			chFlags |= ChannelFlag_TooMuchError;
 	}
-
-	if(chLow)
+	//TODO bug in turning relay off (relay don't answer, but flag still clears)
+	if(chLow){
 		chFlags |= ChannelFlag_HotOn;
-	else if(chFlags & ChannelFlag_Low)
-			chFlags |= ChannelFlag_HotOff;
+		chFlags |= ChannelFlag_Low;
+	}
+	else if(chFlags & ChannelFlag_Low){
+		chFlags |= ChannelFlag_HotOff;
+		chFlags &= ~ChannelFlag_Low;
+	}
 
-	if(chHigh)
+	if(chHigh){
 		chFlags |= ChannelFlag_ColdOn;
-	else if(chFlags & ChannelFlag_High)
-			chFlags |= ChannelFlag_ColdOff;
+		chFlags |= ChannelFlag_High;
+	}
+	else if(chFlags & ChannelFlag_High){
+		chFlags |= ChannelFlag_ColdOff;
+		chFlags &= ~ChannelFlag_High;
+	}
 
 	if((!chLow) && (!chHigh))
 		alertTimer = HAL_GetTick();
@@ -344,20 +358,8 @@ static void RxTimerCallback(void const * argument){
 		return;
 	}
 
-	if(chFlags & ChannelFlag_HotOn)
-		chFlags |= ChannelFlag_Low;
-
-	if(chFlags & ChannelFlag_ColdOn)
-		chFlags |= ChannelFlag_High;
-
-	if((chFlags & ChannelFlag_LowHighError) == ChannelFlag_LowHighError)
-		chFlags = ChannelFlag_LowHighError | ChannelFlag_HotOff | ChannelFlag_ColdOff;
-
-	if(chFlags & ChannelFlag_HotOff)
-		chFlags &= ~ChannelFlag_Low;
-
-	if(chFlags & ChannelFlag_ColdOff)
-		chFlags &= ~ChannelFlag_High;//TODO correct
+//	if((chFlags & ChannelFlag_LowHighError) == ChannelFlag_LowHighError)
+//		chFlags = ChannelFlag_LowHighError | ChannelFlag_HotOff | ChannelFlag_ColdOff;
 
 	for(idx = 0; idx < RelayCount; idx++){
 		msg2.address = AddrRelays[idx];
