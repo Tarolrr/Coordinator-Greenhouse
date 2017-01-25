@@ -1,3 +1,5 @@
+//V1.0.6:
+//	-fixed small error in SMS text
 //V1.0.5:
 //	-changed text in status SMS (russian translit)
 //	-changed StatusSMSPeriodInMinutes back to 10
@@ -234,7 +236,8 @@ static void LCDTaskFxn(void const * argument){
 
 			bool someSensorsNoConnect = false;
 
-			size += sprintf(StatusSMSStr+size,"Termometr ");
+			uint8_t tmpSz = sprintf(StatusSMSStr+size,"Termometr ");
+			size += tmpSz;
 
 			for(idx = 0; idx < SensorCount; idx++)
 				if(HAL_GetTick() - sensorConnectTimer[idx] > 60000*ConnectTimeoutInMinutes){
@@ -243,14 +246,15 @@ static void LCDTaskFxn(void const * argument){
 				}
 
 			if(!someSensorsNoConnect)
-				size -= 2;
+				size -= tmpSz;
 			else
 				size += sprintf(StatusSMSStr+size-1," Ne obnaryzen\n") - 1;
 
 #ifndef DebugWithoutRelay
 			bool someRelaysNoConnect = false;
 
-			size += sprintf(StatusSMSStr+size,"Rele ");
+			tmpSz = sprintf(StatusSMSStr+size,"Rele ");
+			size += tmpSz;
 
 			for(idx = 0; idx < RelayCount; idx++)
 				if(relayNotConnected[idx]){
@@ -264,7 +268,7 @@ static void LCDTaskFxn(void const * argument){
 				}
 
 			if(!someRelaysNoConnect)
-				size -= 2;
+				size -= tmpSz;
 			else
 				size += sprintf(StatusSMSStr+size-1," Ne obnaryzeno\n") - 1;
 #endif
